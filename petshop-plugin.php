@@ -12,6 +12,7 @@ if (!defined('ABSPATH')) {
 ob_start();
 
 define('PETSHOP_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('PETSHOP_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 // Start session for user tracking
 function petshop_start_session() {
@@ -23,6 +24,21 @@ function petshop_start_session() {
     }
 }
 add_action('init', 'petshop_start_session', 1);
+
+// Add this near the top of your plugin file, after the session start
+add_action('admin_init', function() {
+    $current_page = isset($_GET['page']) ? $_GET['page'] : '';
+    
+    // Skip auth check for login page
+    if ($current_page === 'petshop-management') {
+        return;
+    }
+    
+    // Check auth for all other petshop pages
+    if (strpos($current_page, 'ps-') === 0) {
+        petshop_check_auth();
+    }
+});
 
 // Handle logout
 function petshop_handle_logout() {
@@ -37,6 +53,14 @@ add_action('init', 'petshop_handle_logout');
 // Check if user is logged in
 function petshop_is_logged_in() {
     return isset($_SESSION['ps_logged_in']) && $_SESSION['ps_logged_in'] === true;
+}
+
+// Check authentication and redirect if not logged in
+function petshop_check_auth() {
+    if (!petshop_is_logged_in()) {
+        wp_redirect(admin_url('admin.php?page=petshop-management'));
+        exit;
+    }
 }
 
 // Create database tables when plugin is activated
@@ -206,8 +230,39 @@ function petshop_enqueue_scripts() {
 add_action('wp_enqueue_scripts', 'petshop_enqueue_scripts');
 add_action('admin_enqueue_scripts', 'petshop_enqueue_scripts');
 
+function petshop_enqueue_admin_assets($hook) {
+    if (strpos($hook, 'ps-') !== false || $hook === 'toplevel_page_petshop-management') {
+        // Enqueue Chart.js
+        wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js@4.0.1/dist/chart.umd.min.js', [], '4.0.1', true);
+        
+        // Add custom dashboard JS
+        wp_enqueue_script('petshop-dashboard-js', PETSHOP_PLUGIN_URL . 'assets/js/dashboard.js', ['chart-js'], '1.0', true);
+        
+        // Add custom CSS
+        wp_enqueue_style('petshop-admin-dashboard', PETSHOP_PLUGIN_URL . 'modules/admin/css/admin-dashboard.css', [], '1.0');
+        
+        // Get data for charts
+        global $wpdb;
+        $orders_by_location = [];
+        $sales_by_location = [];
+        $monthly_data = [];
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        // Localize script
+        wp_localize_script('petshop-dashboard-js', 'petshopData', [
+            'ordersByLocation' => $orders_by_location,
+            'salesByLocation' => $sales_by_location,
+            'monthlyData' => $monthly_data,
+            'months' => $months
+        ]);
+    }
+}
+add_action('admin_enqueue_scripts', 'petshop_enqueue_admin_assets');
+
 // Add to cart AJAX handler
 function petshop_add_to_cart() {
+    petshop_check_auth();
+    
     if (!isset($_POST['product_id'])) {
         wp_send_json_error('No product specified');
         die();
@@ -375,6 +430,7 @@ function petshop_get_best_selling_products($limit = 8) {
 
 // Register admin menu
 function petshop_register_menu() {
+    // Main menu page - always accessible for login
     add_menu_page(
         'Pet Shop Management',
         'Pet Shop',
@@ -385,56 +441,61 @@ function petshop_register_menu() {
         6
     );
 
-    // Add admin pages only if logged in as admin
-    if (petshop_is_logged_in() && $_SESSION['ps_user_role'] === 'admin') {
-        add_submenu_page(
-            'petshop-management', 
-            'Dashboard', 
-            'Dashboard', 
-            'manage_options', 
-            'ps-dashboard', 
-            function() { require_once PETSHOP_PLUGIN_DIR . 'modules/admin/dashboard.php'; petshop_admin_dashboard(); }
+    // Only add other menu items if logged in as admin
+    if (petshop_is_logged_in() && isset($_SESSION['ps_user_role']) && $_SESSION['ps_user_role'] === 'admin') {
+        $submenus = array(
+            array(
+                'title' => 'Dashboard',
+                'menu' => 'Dashboard',
+                'slug' => 'ps-dashboard',
+                'callback' => function(): void {
+                    petshop_check_auth();
+                    require_once PETSHOP_PLUGIN_DIR . 'modules/admin/dashboard.php';
+                    petshop_admin_dashboard();
+                }
+            ),
+            array(
+                'title' => 'User Management',
+                'menu' => 'Users',
+                'slug' => 'ps-users',
+                'callback' => function() {
+                    petshop_check_auth();
+                    require_once PETSHOP_PLUGIN_DIR . 'modules/admin/usersmanagement.php';
+                    petshop_users_page();
+                }
+            ),
+            array(
+                'title' => 'Reports & Analytics',
+                'menu' => 'Reports',
+                'slug' => 'ps-reports',
+                'callback' => function() {
+                    petshop_check_auth();
+                    require_once PETSHOP_PLUGIN_DIR . 'modules/admin/reports.php';
+                    petshop_reports_page();
+                }
+            ),
+            array(
+                'title' => 'User Info',
+                'menu' => 'User Info',
+                'slug' => 'ps-user-info',
+                'callback' => function() {
+                    petshop_check_auth();
+                    require_once PETSHOP_PLUGIN_DIR . 'modules/admin/user-info.php';
+                    petshop_user_info_page();
+                }
+            ),
         );
-        add_submenu_page(
-            'petshop-management', 
-            'User Management', 
-            'Users', 
-            'manage_options', 
-            'ps-users', 
-            function() { require_once PETSHOP_PLUGIN_DIR . 'modules/admin/usersmanagement.php'; petshop_users_page(); }
-        );
-        add_submenu_page(
-            'petshop-management', 
-            'Product Management', 
-            'Products', 
-            'manage_options', 
-            'ps-products', 
-            'petshop_products_page'
-        );
-        add_submenu_page(
-            'petshop-management', 
-            'Comments', 
-            'Comments', 
-            'manage_options', 
-            'ps-comments', 
-            'petshop_comments_page'
-        );
-        add_submenu_page(
-            'petshop-management', 
-            'Reports', 
-            'Reports', 
-            'manage_options', 
-            'ps-reports', 
-            function() { require_once PETSHOP_PLUGIN_DIR . 'modules/admin/reports.php'; petshop_reports_page(); }
-        );
-        add_submenu_page(
-            'petshop-management', 
-            'Orders', 
-            'Orders', 
-            'manage_options', 
-            'ps-orders', 
-            'petshop_orders_page'
-        );
+
+        foreach ($submenus as $submenu) {
+            add_submenu_page(
+                'petshop-management',
+                $submenu['title'],
+                $submenu['menu'],
+                'manage_options',
+                $submenu['slug'],
+                $submenu['callback']
+            );
+        }
     }
 }
 add_action('admin_menu', 'petshop_register_menu');
@@ -450,42 +511,26 @@ function petshop_login_page() {
 
 // Products page
 function petshop_products_page() {
-    if (petshop_is_logged_in()) {
-        require_once PETSHOP_PLUGIN_DIR . 'modules/products/products.php';
-    } else {
-        wp_redirect(admin_url('admin.php?page=petshop-management'));
-        exit;
-    }
+    petshop_check_auth();
+    require_once PETSHOP_PLUGIN_DIR . 'modules/products/products.php';
 }
 
 // Add product page
 function petshop_add_product_page() {
-    if (petshop_is_logged_in()) {
-        require_once PETSHOP_PLUGIN_DIR . 'modules/products/add-product.php';
-    } else {
-        wp_redirect(admin_url('admin.php?page=petshop-management'));
-        exit;
-    }
+    petshop_check_auth();
+    require_once PETSHOP_PLUGIN_DIR . 'modules/products/add-product.php';
 }
 
 // Categories page
 function petshop_categories_page() {
-    if (petshop_is_logged_in()) {
-        require_once PETSHOP_PLUGIN_DIR . 'modules/categories/categories.php';
-    } else {
-        wp_redirect(admin_url('admin.php?page=petshop-management'));
-        exit;
-    }
+    petshop_check_auth();
+    require_once PETSHOP_PLUGIN_DIR . 'modules/categories/categories.php';
 }
 
 // Orders page
 function petshop_orders_page() {
-    if (petshop_is_logged_in()) {
-        require_once PETSHOP_PLUGIN_DIR . 'modules/orders/orders.php';
-    } else {
-        wp_redirect(admin_url('admin.php?page=petshop-management'));
-        exit;
-    }
+    petshop_check_auth();
+    require_once PETSHOP_PLUGIN_DIR . 'modules/orders/orders.php';
 }
 
 // Template page

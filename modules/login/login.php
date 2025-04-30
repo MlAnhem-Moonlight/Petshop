@@ -6,8 +6,6 @@ if (!defined('ABSPATH')) {
 global $wpdb;
 $table_name = $wpdb->prefix . 'petshop_users';
 
-session_start();
-
 if (!function_exists('wp_hash_password')) {
     require_once(ABSPATH . 'wp-includes/pluggable.php');
 }
@@ -115,7 +113,12 @@ if (!function_exists('wp_hash_password')) {
                 $_SESSION['ps_user_role'] = $user->role;
                 $_SESSION['ps_user_id']   = $user->id;
 
-                wp_redirect(admin_url('admin.php?page=ps-products'));
+                // Redirect based on user role
+                if ($user->role === 'admin') {
+                    wp_redirect(admin_url('admin.php?page=ps-dashboard'));
+                } else {
+                    wp_redirect(admin_url('admin.php?page=ps-products'));
+                }
                 exit;
             } else {
                 echo '<div style="color:red; margin-bottom:10px;">Sai mật khẩu</div>';
