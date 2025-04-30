@@ -51,6 +51,8 @@ function petshop_create_tables() {
     $table_cart_items = $wpdb->prefix . 'petshop_cart_items';
     $table_orders = $wpdb->prefix . 'petshop_orders';
     $table_order_items = $wpdb->prefix . 'petshop_order_items';
+    $table_users = $wpdb->prefix . 'petshop_users';
+    $user_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_users'") == $table_users;
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 
@@ -71,6 +73,39 @@ function petshop_create_tables() {
             PRIMARY KEY (id)
         ) $charset_collate;");
     }
+    if (!$user_exists) {
+        dbDelta("CREATE TABLE $table_users (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            username VARCHAR(100) NOT NULL UNIQUE,
+            password VARCHAR(255) NOT NULL,
+            email VARCHAR(100),
+            phone VARCHAR(20) NULL,  // Thêm trường số điện thoại, có thể có hoặc không
+            role VARCHAR(50) NOT NULL DEFAULT 'user',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id)
+        ) $charset_collate;");
+    }
+    
+    $admin_username = 'admin';
+    $admin_email = 'admin@gmail.com';
+    $admin_password = password_hash('123456', PASSWORD_DEFAULT); // Mã hóa mật khẩu
+    $admin_role = 'admin';
+    $admin_phone = NULL; // Nếu không có số điện thoại, đặt giá trị NULL
+    
+    $wpdb->insert(
+        $table_users,
+        array(
+            'username' => $admin_username,
+            'password' => $admin_password,
+            'email'    => $admin_email,
+            'phone'    => $admin_phone,  // Thêm số điện thoại nếu có
+            'role'     => $admin_role,
+            'created_at' => current_time('mysql')
+        ),
+        array('%s', '%s', '%s', '%s', '%s', '%s')
+    );
+    
+        
 
     // Create products table if not exists
     if (!$products_exists) {
@@ -350,13 +385,56 @@ function petshop_register_menu() {
         6
     );
 
-    // Add additional admin pages if logged in
-    if (petshop_is_logged_in()) {
-        add_submenu_page('petshop-management', 'Quản lý sản phẩm', 'Sản phẩm', 'manage_options', 'ps-products', 'petshop_products_page');
-        add_submenu_page('petshop-management', 'Quản lý danh mục', 'Danh mục', 'manage_options', 'ps-categories', 'petshop_categories_page');
-        add_submenu_page('petshop-management', 'Thêm sản phẩm', 'Thêm sản phẩm', 'manage_options', 'ps-add-product', 'petshop_add_product_page');
-        add_submenu_page('petshop-management', 'Template Page', 'Template', 'manage_options', 'ps-template', 'petshop_render_template_page');
-        add_submenu_page('petshop-management', 'Orders', 'Orders', 'manage_options', 'ps-orders', 'petshop_orders_page');
+    // Add admin pages only if logged in as admin
+    if (petshop_is_logged_in() && $_SESSION['ps_user_role'] === 'admin') {
+        add_submenu_page(
+            'petshop-management', 
+            'Dashboard', 
+            'Dashboard', 
+            'manage_options', 
+            'ps-dashboard', 
+            function() { require_once PETSHOP_PLUGIN_DIR . 'modules/admin/dashboard.php'; petshop_admin_dashboard(); }
+        );
+        add_submenu_page(
+            'petshop-management', 
+            'User Management', 
+            'Users', 
+            'manage_options', 
+            'ps-users', 
+            function() { require_once PETSHOP_PLUGIN_DIR . 'modules/admin/usersmanagement.php'; petshop_users_page(); }
+        );
+        add_submenu_page(
+            'petshop-management', 
+            'Product Management', 
+            'Products', 
+            'manage_options', 
+            'ps-products', 
+            'petshop_products_page'
+        );
+        add_submenu_page(
+            'petshop-management', 
+            'Comments', 
+            'Comments', 
+            'manage_options', 
+            'ps-comments', 
+            'petshop_comments_page'
+        );
+        add_submenu_page(
+            'petshop-management', 
+            'Reports', 
+            'Reports', 
+            'manage_options', 
+            'ps-reports', 
+            function() { require_once PETSHOP_PLUGIN_DIR . 'modules/admin/reports.php'; petshop_reports_page(); }
+        );
+        add_submenu_page(
+            'petshop-management', 
+            'Orders', 
+            'Orders', 
+            'manage_options', 
+            'ps-orders', 
+            'petshop_orders_page'
+        );
     }
 }
 add_action('admin_menu', 'petshop_register_menu');

@@ -1,3 +1,19 @@
+<?php
+if (!defined('ABSPATH')) {
+    die('Direct access not permitted.');
+}
+
+global $wpdb;
+$table_name = $wpdb->prefix . 'petshop_users';
+
+session_start();
+
+if (!function_exists('wp_hash_password')) {
+    require_once(ABSPATH . 'wp-includes/pluggable.php');
+}
+
+?>
+
 <style>
     .ps-login-container {
         width: 450px;
@@ -89,18 +105,29 @@
         $username = sanitize_text_field($_POST['ps_username']);
         $password = sanitize_text_field($_POST['ps_password']);
 
-        if ($username === 'admin' && $password === 'admin') {
-            $_SESSION['ps_logged_in'] = true;
-            wp_redirect(admin_url('admin.php?page=ps-products'));
-            exit;
+        $user = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table_name WHERE username = %s", $username)
+        );
+
+        if ($user) {
+            if (password_verify($password, $user->password)) {
+                $_SESSION['ps_logged_in'] = true;
+                $_SESSION['ps_user_role'] = $user->role;
+                $_SESSION['ps_user_id']   = $user->id;
+
+                wp_redirect(admin_url('admin.php?page=ps-products'));
+                exit;
+            } else {
+                echo '<div style="color:red; margin-bottom:10px;">Sai mật khẩu</div>';
+            }
         } else {
-            echo '<div style="color:red; margin-bottom:10px;">Sai tên đăng nhập hoặc mật khẩu</div>';
+            echo '<div style="color:red; margin-bottom:10px;">Tên đăng nhập không tồn tại</div>';
         }
     }
     ?>
 
     <form method="post">
-        <input type="text" name="ps_username" placeholder="Email" required>
+        <input type="text" name="ps_username" placeholder="Tên đăng nhập" required>
         <input type="password" name="ps_password" placeholder="Mật khẩu" required>
         <button type="submit" class="ps-btn">Đăng nhập</button>
     </form>

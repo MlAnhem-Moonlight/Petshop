@@ -3,46 +3,54 @@ if (!defined('ABSPATH')) {
     die('Direct access not permitted.');
 }
 
-// Verify WordPress functions are available
-if (!function_exists('wp_create_user')) {
+global $wpdb;
+$table_name = $wpdb->prefix . 'petshop_users';
+
+// Kiểm tra bảng tồn tại
+$table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+if (!$table_exists) {
+    error_log('Table not found: ' . $table_name);
+}
+
+// Load hàm hash mật khẩu nếu chưa có
+if (!function_exists('wp_hash_password')) {
     require_once(ABSPATH . 'wp-includes/pluggable.php');
 }
 ?>
 
 <style>
-    .ps-register-bg {
+    .ps-register-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
         background: url('<?php echo plugin_dir_url(__FILE__) . "../../assets/bg-register.jpg"; ?>') no-repeat center center;
         background-size: cover;
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%;
-        height: 100%;
-        filter: blur(4px);
-        z-index: 1;
+        
     }
 
     .ps-register-container {
-        max-width: 500px;
-        margin: 50px auto;
+        width: 400px;
         padding: 40px;
-        background: rgba(255, 255, 255, 0.85);
-        border-radius: 25px;
-        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 30px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
         position: relative;
         z-index: 2;
     }
 
     .ps-register-container h2 {
-        text-align: left;
-        color: #333;
+        font-size: 30px;
+        color: #cc0000;
         margin-bottom: 20px;
+        text-align: left;
     }
 
     .ps-register-container label {
-        display: block;
+        font-weight: 600;
         margin-bottom: 5px;
+        display: block;
         color: #333;
-        font-weight: bold;
     }
 
     .ps-register-container input[type="text"],
@@ -51,55 +59,22 @@ if (!function_exists('wp_create_user')) {
         width: 100%;
         padding: 12px;
         margin-bottom: 15px;
-        border: 1px solid #ccc;
         border-radius: 8px;
-        font-size: 15px;
+        border: 1px solid #ccc;
+        font-size: 14px;
     }
 
     .ps-btn-register {
-        background: linear-gradient(to right, #f6d365, #fda085);
-        border: none;
+        background-color: #f5c542;
         color: white;
+        border: none;
+        width: 100%;
         padding: 12px;
         border-radius: 8px;
-        width: 100%;
         font-size: 16px;
+        font-weight: bold;
         cursor: pointer;
         margin-bottom: 10px;
-    }
-
-    .ps-register-footer {
-        text-align: center;
-        margin-top: 10px;
-    }
-
-    .ps-register-footer a {
-        color: #333;
-        text-decoration: underline;
-    }
-
-    .ps-social-login {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        margin-top: 10px;
-    }
-
-    .ps-social-btn {
-        padding: 10px 15px;
-        border: none;
-        border-radius: 5px;
-        color: white;
-        cursor: pointer;
-        font-weight: bold;
-    }
-
-    .ps-facebook {
-        background-color: #3b5998;
-    }
-
-    .ps-google {
-        background-color: #dd4b39;
     }
 
     .notice.success {
@@ -117,87 +92,135 @@ if (!function_exists('wp_create_user')) {
         margin-bottom: 10px;
         border-radius: 5px;
     }
+
+    .ps-register-footer {
+        text-align: center;
+        margin-top: 15px;
+    }
+
+    .ps-social-login {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .ps-social-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 15px;
+        border-radius: 5px;
+        color: white;
+        font-weight: bold;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .ps-facebook {
+        background-color: #3b5998;
+    }
+
+    .ps-google {
+        background-color: #dd4b39;
+    }
 </style>
 
-<div class="ps-register-bg"></div>
+<div class="ps-register-wrapper">
+    <div class="ps-register-container">
+        <h2>Đăng ký</h2>
 
-<div class="ps-register-container">
-    <h2>Đăng ký</h2>
+        <?php
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ps_register'])) {
+            $username = sanitize_user($_POST['username']);
+            $password = $_POST['password'];
+            $email    = sanitize_email($_POST['email']);
+            $phone    = sanitize_text_field($_POST['phone']);
 
-    <?php
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ps_register'])) {
-        $username = sanitize_user($_POST['username']);
-        $password = $_POST['password'];
-        $email    = sanitize_email($_POST['email']);
+            $errors = [];
 
-        $errors = [];
+            $username_exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $table_name WHERE username = %s",
+                $username
+            ));
 
-        if (username_exists($username)) {
-            $errors[] = 'Tên đăng nhập đã tồn tại.';
-        }
+            $email_exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $table_name WHERE email = %s",
+                $email
+            ));
 
-        if (!is_email($email) || email_exists($email)) {
-            $errors[] = 'Email không hợp lệ hoặc đã được sử dụng.';
-        }
+            if ($username_exists > 0) {
+                $errors[] = 'Tên đăng nhập đã tồn tại.';
+            }
 
-        if (empty($password)) {
-            $errors[] = 'Vui lòng nhập mật khẩu.';
-        }
+            if (!is_email($email) || $email_exists > 0) {
+                $errors[] = 'Email không hợp lệ hoặc đã được sử dụng.';
+            }
 
-        if (empty($errors)) {
-            // Hash the password before creating user
-            $user_id = wp_create_user($username, $password, $email);
+            if (empty($password)) {
+                $errors[] = 'Vui lòng nhập mật khẩu.';
+            }
 
-            if (is_wp_error($user_id)) {
-                // Get detailed error message
-                $errors[] = $user_id->get_error_message();
-            } else {
-                // Set default role
-                $user = new WP_User($user_id);
-                $user->set_role('user');
-                
-                // Add custom user meta if needed
-                if (!empty($_POST['phone'])) {
-                    update_user_meta($user_id, 'phone', sanitize_text_field($_POST['phone']));
+            if (empty($errors)) {
+                $hashed_password = wp_hash_password($password);
+
+                try {
+                    $result = $wpdb->insert(
+                        $table_name,
+                        array(
+                            'username'   => $username,
+                            'password'   => $hashed_password,
+                            'email'      => $email,
+                            'phone'      => $phone,
+                            'created_at' => current_time('mysql', 1)
+                        ),
+                        array('%s', '%s', '%s', '%s', '%s')
+                    );
+
+                    if ($result === false) {
+                        $errors[] = 'Không thể đăng ký: ' . $wpdb->last_error;
+                    } else {
+                        echo '<div class="notice success">Đăng ký thành công!</div>';
+                    }
+                } catch (Exception $e) {
+                    $errors[] = 'Lỗi khi thêm user: ' . $e->getMessage();
                 }
-                
-                // Debug information
-                error_log('User created successfully. User ID: ' . $user_id);
-                
-                echo '<div class="notice success">Đăng ký thành công! Bạn có thể <a href="' . admin_url('admin.php?page=petshop-management') . '">đăng nhập</a>.</div>';
+            }
+
+            if (!empty($errors)) {
+                foreach ($errors as $error) {
+                    echo '<div class="notice error">' . esc_html($error) . '</div>';
+                }
             }
         }
+        ?>
 
-        if (!empty($errors)) {
-            foreach ($errors as $error) {
-                echo '<div class="notice error">' . esc_html($error) . '</div>';
-            }
-        }
-    }
-    ?>
+        <form method="post">
+            <label for="username">Họ và tên:</label>
+            <input type="text" name="username" id="username" required>
 
-    <form method="post">
-        <label for="username">Họ và tên:</label>
-        <input type="text" name="username" id="username" required>
+            <label for="email">Email:</label>
+            <input type="email" name="email" id="email" required>
 
-        <label for="email">Email:</label>
-        <input type="email" name="email" id="email" required>
+            <label for="phone">Số điện thoại:</label>
+            <input type="text" name="phone" id="phone">
 
-        <label for="phone">Số điện thoại:</label>
-        <input type="text" name="phone" id="phone">
+            <label for="password">Mật khẩu:</label>
+            <input type="password" name="password" id="password" required>
 
-        <label for="password">Mật khẩu:</label>
-        <input type="password" name="password" id="password" required>
+            <button type="submit" name="ps_register" class="ps-btn-register">Đăng ký</button>
+        </form>
 
-        <button type="submit" name="ps_register" class="ps-btn-register">Đăng ký</button>
-    </form>
-
-    <div class="ps-register-footer">
-        <span>Hoặc đăng nhập bằng</span>
-        <div class="ps-social-login">
-            <button class="ps-social-btn ps-facebook">Facebook</button>
-            <button class="ps-social-btn ps-google">Google</button>
+        <div class="ps-register-footer">
+            <p>Hoặc đăng nhập bằng</p>
+            <div class="ps-social-login">
+                <button class="ps-social-btn ps-facebook">Facebook</button>
+                <button class="ps-social-btn ps-google">Google</button>
+            </div>
+            <p style="margin-top: 15px;">Đã có tài khoản?
+                <a href="<?php echo admin_url('admin.php?page=petshop-management'); ?>">Đăng nhập</a>
+            </p>
         </div>
-        <p>Đã có tài khoản? <a href="<?php echo admin_url('admin.php?page=petshop-management'); ?>">Đăng nhập</a></p>
     </div>
 </div>
