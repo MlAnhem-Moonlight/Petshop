@@ -136,7 +136,7 @@ if (!function_exists('wp_hash_password')) {
     </form>
 
     <div class="ps-login-footer">
-        <a href="#">Quên mật khẩu</a>
+        <a href="<?php echo admin_url('admin.php?page=petshop-management&action=forgot-password'); ?>">Quên mật khẩu</a>
         <p>Hoặc đăng nhập bằng</p>
         <div class="ps-social-login">
             <button class="ps-social-btn ps-facebook">Facebook</button>

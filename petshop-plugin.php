@@ -14,6 +14,9 @@ ob_start();
 define('PETSHOP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('PETSHOP_PLUGIN_URL', plugin_dir_url(__FILE__));
 
+// Add this near the top with other requires
+require_once PETSHOP_PLUGIN_DIR . 'modules/admin/petsmanagement.php';
+
 // Start session for user tracking
 function petshop_start_session() {
     if (!session_id()) {
@@ -184,7 +187,37 @@ function petshop_create_tables() {
     ) $charset_collate;";
     dbDelta($sql);
 
+    // Create OTP table
+    $table_otp = $wpdb->prefix . 'petshop_otp';
+    $sql = "CREATE TABLE IF NOT EXISTS $table_otp (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        email VARCHAR(100) NOT NULL,
+        otp VARCHAR(6) NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME NOT NULL,
+        is_used TINYINT(1) DEFAULT 0,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+    
+    dbDelta($sql);
 
+    // Create pets table
+    $table_pets = $wpdb->prefix . 'petshop_pets';
+    $sql = "CREATE TABLE IF NOT EXISTS $table_pets (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        breed VARCHAR(100),
+        age INT,
+        health_status VARCHAR(50),
+        last_checkup DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        FOREIGN KEY (user_id) REFERENCES {$wpdb->prefix}petshop_users(id)
+    ) $charset_collate;";
+    
+    dbDelta($sql);
 }
 
 // Update insert_sample_data function to include error checking
@@ -348,6 +381,21 @@ function petshop_enqueue_admin_assets($hook) {
     }
 }
 add_action('admin_enqueue_scripts', 'petshop_enqueue_admin_assets');
+
+// Update the enqueue function
+
+function petshop_enqueue_admin_scripts($hook) {
+    if (strpos($hook, 'ps-') !== false) {
+        wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js', [], '3.7.0', true);
+        wp_enqueue_script('petshop-dashboard', plugins_url('assets/js/dashboard.js', __FILE__), ['jquery', 'chart-js'], '1.0', true);
+        
+        wp_localize_script('petshop-dashboard', 'petshopDashboardVars', [
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('petshop_dashboard_nonce')
+        ]);
+    }
+}
+add_action('admin_enqueue_scripts', 'petshop_enqueue_admin_scripts');
 
 // Add to cart AJAX handler
 function petshop_add_to_cart() {
@@ -586,14 +634,56 @@ function petshop_register_menu() {
                 $submenu['callback']
             );
         }
+
+        add_submenu_page(
+            'petshop-management',
+            'Products',
+            'Products',
+            'manage_options',
+            'ps-products',
+            'petshop_products_page'
+        );
+        
+        add_submenu_page(
+            'petshop-management',
+            'Categories',
+            'Categories',
+            'manage_options',
+            'ps-categories',
+            'petshop_categories_page'
+        );
+        
+        add_submenu_page(
+            'petshop-management',
+            'Customer Pets',
+            'Pets Information',
+            'manage_options',
+            'ps-pets',
+            'petshop_pets_page'
+        );
     }
 }
 add_action('admin_menu', 'petshop_register_menu');
 
 // Login page
 function petshop_login_page() {
-    if (isset($_GET['action']) && $_GET['action'] === 'register') {
-        require_once PETSHOP_PLUGIN_DIR . 'modules/login/register.php';
+    if (isset($_GET['action'])) {
+        switch ($_GET['action']) {
+            case 'register':
+                require_once PETSHOP_PLUGIN_DIR . 'modules/login/register.php';
+                break;
+            case 'forgot-password':
+                require_once PETSHOP_PLUGIN_DIR . 'modules/login/forgot-password.php';
+                break;
+            case 'verify-otp':
+                require_once PETSHOP_PLUGIN_DIR . 'modules/login/verify-otp.php';
+                break;
+            case 'reset-password':
+                require_once PETSHOP_PLUGIN_DIR . 'modules/login/reset-password.php';
+                break;
+            default:
+                require_once PETSHOP_PLUGIN_DIR . 'modules/login/login.php';
+        }
     } else {
         require_once PETSHOP_PLUGIN_DIR . 'modules/login/login.php';
     }
@@ -645,3 +735,101 @@ function petshop_admin_page() {
     </div>
     <?php
 }
+
+// Add AJAX handler for fetching dashboard data
+add_action('wp_ajax_petshop_fetch_dashboard_data', 'petshop_ajax_fetch_dashboard_data');
+
+function petshop_ajax_fetch_dashboard_data() {
+    check_ajax_referer('petshop_dashboard_nonce', 'nonce');
+    
+    $time_filter = $_POST['time_filter'] ?? 'month';
+    $time_tab = $_POST['time_tab'] ?? 'month';
+    $year = intval($_POST['year'] ?? date('Y'));
+    
+    global $wpdb;
+    
+    // Get data based on filters
+    $data = array(
+        'kpi' => get_kpi_data($time_filter, $time_tab, $year),
+        'charts' => array(
+            'orders_location' => get_orders_location_data($time_filter, $year),
+            'sales_location' => get_sales_location_data($time_filter, $year),
+            'revenue' => get_revenue_data($time_tab, $year),
+            'mini' => array(
+                'orders' => get_mini_orders_data($time_filter, $year),
+                'users' => get_mini_users_data($time_filter, $year)
+            )
+        )
+    );
+    
+    wp_send_json_success($data);
+}
+
+// Add this function to handle AJAX requests
+
+function petshop_fetch_dashboard_data() {
+    check_ajax_referer('petshop_dashboard_nonce', 'nonce');
+    
+    global $wpdb;
+    $time_filter = $_POST['time_filter'] ?? 'month';
+    $time_tab = $_POST['time_tab'] ?? 'month';
+    $year = intval($_POST['year'] ?? date('Y'));
+    
+    // Build date conditions based on filters
+    $date_condition = "YEAR(created_at) = $year";
+    if ($time_tab === 'week') {
+        $date_condition .= " AND WEEK(created_at) = WEEK(CURRENT_DATE())";
+    } elseif ($time_tab === 'month') {
+        $date_condition .= " AND MONTH(created_at) = MONTH(CURRENT_DATE())";
+    }
+    
+    // Get orders by location
+    $orders_by_location = $wpdb->get_results("
+        SELECT customer_address as location, COUNT(*) as count
+        FROM {$wpdb->prefix}petshop_orders
+        WHERE $date_condition
+        GROUP BY customer_address
+        ORDER BY count DESC
+        LIMIT 5
+    ", ARRAY_A);
+    
+    // Get sales by location
+    $sales_by_location = $wpdb->get_results("
+        SELECT customer_address as location, 
+               SUM(total_amount) as total,
+               (SUM(total_amount) / (SELECT SUM(total_amount) FROM {$wpdb->prefix}petshop_orders WHERE $date_condition) * 100) as percentage
+        FROM {$wpdb->prefix}petshop_orders
+        WHERE $date_condition AND status = 'completed'
+        GROUP BY customer_address
+        ORDER BY total DESC
+        LIMIT 5
+    ", ARRAY_A);
+    
+    // Get revenue data
+    $revenue_data = $wpdb->get_results("
+        SELECT " . ($time_filter === 'month' ? 'MONTH' : 'QUARTER') . "(created_at) as period,
+               SUM(total_amount) as revenue
+        FROM {$wpdb->prefix}petshop_orders
+        WHERE $date_condition AND status = 'completed'
+        GROUP BY period
+        ORDER BY period
+    ", ARRAY_A);
+    
+    wp_send_json_success([
+        'orders_location' => [
+            'labels' => array_column($orders_by_location, 'location'),
+            'data' => array_column($orders_by_location, 'count')
+        ],
+        'sales_location' => [
+            'labels' => array_column($sales_by_location, 'location'),
+            'data' => array_column($sales_by_location, 'percentage')
+        ],
+        'revenue' => [
+            'labels' => $time_filter === 'month' ? 
+                ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] :
+                ['Q1', 'Q2', 'Q3', 'Q4'],
+            'data' => array_column($revenue_data, 'revenue')
+        ]
+    ]);
+}
+add_action('wp_ajax_petshop_fetch_dashboard_data', 'petshop_fetch_dashboard_data');

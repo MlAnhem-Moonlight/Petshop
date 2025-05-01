@@ -490,6 +490,35 @@ function petshop_admin_dashboard() {
             }
         });
     });
+
+    // Initialize chart data objects
+    const ordersLocationChartData = {
+        labels: <?php echo json_encode(array_keys($orders_by_location)); ?>,
+        data: <?php echo json_encode(array_values($orders_by_location)); ?>
+    };
+
+    const salesLocationChartData = {
+        labels: <?php echo json_encode(array_keys($sales_by_location)); ?>,
+        data: <?php echo json_encode(array_values($sales_by_location)); ?>
+    };
+
+    const revenueChartData = {
+        labels: <?php echo json_encode($months); ?>,
+        data: <?php echo json_encode($monthly_revenue); ?>
+    };
+
+    // Add year selector
+    document.querySelector('.ps-user-info-bar').insertAdjacentHTML('beforeend', `
+        <select id="ps-year-selector" class="ps-year-select">
+            ${Array.from({length: 6}, (_, i) => new Date().getFullYear() - i)
+                .map(year => `<option value="${year}">${year}</option>`).join('')}
+        </select>
+    `);
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        PetshopDashboard.init();
+    });
     </script>
     <?php
 }
