@@ -65,138 +65,228 @@ function petshop_check_auth() {
 
 // Create database tables when plugin is activated
 register_activation_hook(__FILE__, 'petshop_create_tables');
+register_activation_hook(__FILE__, function() {
+    global $wpdb;
+    
+    // Create tables first
+    petshop_create_tables();
+    
+    // Get table name
+    $table_users = $wpdb->prefix . 'petshop_users';
+    
+    // Check if users table exists and is empty
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_users'") === $table_users;
+    $user_count = 0;
+    
+    if ($table_exists) {
+        $user_count = $wpdb->get_var("SELECT COUNT(*) FROM $table_users");
+    }
+    
+    // Only insert data if table is empty
+    if ($table_exists && $user_count == 0) {
+        insert_sample_data();
+    }
+});
+
 function petshop_create_tables() {
     global $wpdb;
     $charset_collate = $wpdb->get_charset_collate();
     
+    // Define table names
+    $table_users = $wpdb->prefix . 'petshop_users';
     $table_categories = $wpdb->prefix . 'petshop_categories';
     $table_products = $wpdb->prefix . 'petshop_products';
     $table_carts = $wpdb->prefix . 'petshop_carts';
     $table_cart_items = $wpdb->prefix . 'petshop_cart_items';
     $table_orders = $wpdb->prefix . 'petshop_orders';
     $table_order_items = $wpdb->prefix . 'petshop_order_items';
-    $table_users = $wpdb->prefix . 'petshop_users';
-    $user_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_users'") == $table_users;
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 
-    // Check if tables exist before creating them
-    $categories_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_categories'") == $table_categories;
-    $products_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_products'") == $table_products;
-    $carts_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_carts'") == $table_carts;
-    $cart_items_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_cart_items'") == $table_cart_items;
-    $orders_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_orders'") == $table_orders;
-    $order_items_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_order_items'") == $table_order_items;
+    // Create users table first
+    $sql = "CREATE TABLE IF NOT EXISTS $table_users (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        username VARCHAR(100) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        email VARCHAR(100) NOT NULL,
+        phone VARCHAR(20),
+        role VARCHAR(50) NOT NULL DEFAULT 'user',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+    
+    dbDelta($sql);
 
-    // Create categories table if not exists
-    if (!$categories_exists) {
-        dbDelta("CREATE TABLE $table_categories (
-            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            name VARCHAR(100) NOT NULL,
-            description TEXT,
-            PRIMARY KEY (id)
-        ) $charset_collate;");
+    // Create other tables...
+    $sql = "CREATE TABLE IF NOT EXISTS $table_categories (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+    dbDelta($sql);
+
+    $sql = "CREATE TABLE IF NOT EXISTS $table_products (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        price DECIMAL(10,2) NOT NULL,
+        stock_quantity INT(11) DEFAULT 0,
+        category_id BIGINT(20) UNSIGNED,
+        image_url TEXT,
+        PRIMARY KEY (id),
+        FOREIGN KEY (category_id) REFERENCES $table_categories(id) ON DELETE SET NULL
+    ) $charset_collate;";
+    dbDelta($sql);
+
+    $sql = "CREATE TABLE IF NOT EXISTS $table_carts (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        created_at DATETIME NOT NULL,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+    dbDelta($sql);
+
+    $sql = "CREATE TABLE IF NOT EXISTS $table_cart_items (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        cart_id BIGINT(20) UNSIGNED NOT NULL,
+        product_id BIGINT(20) UNSIGNED NOT NULL,
+        quantity INT(11) NOT NULL,
+        PRIMARY KEY (id),
+        FOREIGN KEY (cart_id) REFERENCES $table_carts(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES $table_products(id) ON DELETE CASCADE
+    ) $charset_collate;";
+    dbDelta($sql);
+
+    $sql = "CREATE TABLE IF NOT EXISTS $table_orders (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        user_id BIGINT(20) UNSIGNED NOT NULL,
+        total_amount DECIMAL(10,2) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        created_at DATETIME NOT NULL,
+        customer_name VARCHAR(100),
+        customer_email VARCHAR(100),
+        customer_phone VARCHAR(50),
+        customer_address VARCHAR(255),
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+    dbDelta($sql);
+
+    $sql = "CREATE TABLE IF NOT EXISTS $table_order_items (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        order_id BIGINT(20) UNSIGNED NOT NULL,
+        product_id BIGINT(20) UNSIGNED NOT NULL,
+        quantity INT(11) NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        PRIMARY KEY (id),
+        FOREIGN KEY (order_id) REFERENCES $table_orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES $table_products(id) ON DELETE CASCADE
+    ) $charset_collate;";
+    dbDelta($sql);
+
+
+}
+
+// Update insert_sample_data function to include error checking
+function insert_sample_data() {
+    global $wpdb;
+    $wpdb->show_errors();
+    
+    // Insert sample categories
+    $categories = [
+        ['name' => 'Dogs', 'description' => 'All dog related products'],
+        ['name' => 'Cats', 'description' => 'All cat related products'],
+        ['name' => 'Birds', 'description' => 'Bird supplies and accessories'],
+        ['name' => 'Fish', 'description' => 'Aquarium and fish supplies']
+    ];
+    
+    foreach ($categories as $category) {
+        $result = $wpdb->insert($wpdb->prefix . 'petshop_categories', $category);
+        if ($result === false) {
+            error_log('Failed to insert category: ' . $wpdb->last_error);
+        }
     }
-    if (!$user_exists) {
-        dbDelta("CREATE TABLE $table_users (
-            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            username VARCHAR(100) NOT NULL UNIQUE,
-            password VARCHAR(255) NOT NULL,
-            email VARCHAR(100),
-            phone VARCHAR(20) NULL,  // Thêm trường số điện thoại, có thể có hoặc không
-            role VARCHAR(50) NOT NULL DEFAULT 'user',
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
-        ) $charset_collate;");
+    
+    // Insert sample products
+    $products = [
+        ['name' => 'Premium Dog Food', 'description' => 'High quality dog food', 'price' => 299000, 'stock_quantity' => 100, 'category_id' => 1],
+        ['name' => 'Cat Litter Box', 'description' => 'Large cat litter box', 'price' => 159000, 'stock_quantity' => 50, 'category_id' => 2],
+        ['name' => 'Bird Cage', 'description' => 'Medium sized bird cage', 'price' => 499000, 'stock_quantity' => 30, 'category_id' => 3],
+        ['name' => 'Fish Tank', 'description' => '20 gallon fish tank', 'price' => 899000, 'stock_quantity' => 20, 'category_id' => 4]
+    ];
+    
+    foreach ($products as $product) {
+        $result = $wpdb->insert($wpdb->prefix . 'petshop_products', $product);
+        if ($result === false) {
+            error_log('Failed to insert product: ' . $wpdb->last_error);
+        }
     }
     
-    $admin_username = 'admin';
-    $admin_email = 'admin@gmail.com';
-    $admin_password = password_hash('123456', PASSWORD_DEFAULT); // Mã hóa mật khẩu
-    $admin_role = 'admin';
-    $admin_phone = NULL; // Nếu không có số điện thoại, đặt giá trị NULL
+    // Insert admin user first
+    $admin = [
+        'username' => 'admin',
+        'password' => password_hash('123456', PASSWORD_DEFAULT),
+        'email' => 'admin@gmail.com',
+        'phone' => '0909123456',
+        'role' => 'admin',
+        'created_at' => current_time('mysql')
+    ];
     
-    $wpdb->insert(
-        $table_users,
-        array(
-            'username' => $admin_username,
-            'password' => $admin_password,
-            'email'    => $admin_email,
-            'phone'    => $admin_phone,  // Thêm số điện thoại nếu có
-            'role'     => $admin_role,
-            'created_at' => current_time('mysql')
-        ),
-        array('%s', '%s', '%s', '%s', '%s', '%s')
-    );
+    $result = $wpdb->insert($wpdb->prefix . 'petshop_users', $admin);
+    if ($result === false) {
+        error_log('Failed to insert admin user: ' . $wpdb->last_error);
+    }
     
+    // Insert sample users
+    $users = [
+        ['username' => 'customer1', 'password' => password_hash('123456', PASSWORD_DEFAULT), 'email' => 'customer1@example.com', 'phone' => '0981234567', 'role' => 'user', 'created_at' => current_time('mysql')],
+        ['username' => 'customer2', 'password' => password_hash('123456', PASSWORD_DEFAULT), 'email' => 'customer2@example.com', 'phone' => '0987654321', 'role' => 'user', 'created_at' => current_time('mysql')]
+    ];
+    
+    foreach ($users as $user) {
+        $result = $wpdb->insert($wpdb->prefix . 'petshop_users', $user);
+        if ($result === false) {
+            error_log('Failed to insert user: ' . $wpdb->last_error);
+        }
+    }
+    
+    // Insert sample orders with proper error checking
+    $locations = ['Hà Nội', 'Bắc Ninh', 'Thanh Hóa', 'Quảng Ninh', 'Tp Hồ Chí Minh'];
+    $statuses = ['pending', 'completed', 'cancelled'];
+    
+    for ($i = 0; $i < 20; $i++) {
+        $order = [
+            'user_id' => rand(1, 3),
+            'total_amount' => rand(100000, 2000000),
+            'status' => $statuses[array_rand($statuses)],
+            'created_at' => date('Y-m-d H:i:s', strtotime(-rand(0, 365) . ' days')),
+            'customer_name' => 'Customer ' . rand(1, 10),
+            'customer_email' => 'customer' . rand(1, 10) . '@example.com',
+            'customer_phone' => '098' . rand(1000000, 9999999),
+            'customer_address' => $locations[array_rand($locations)]
+        ];
         
-
-    // Create products table if not exists
-    if (!$products_exists) {
-        dbDelta("CREATE TABLE $table_products (
-            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            name VARCHAR(100) NOT NULL,
-            description TEXT,
-            price DECIMAL(10,2) NOT NULL,
-            stock_quantity INT(11) DEFAULT 0,
-            category_id BIGINT(20) UNSIGNED,
-            image_url TEXT,
-            PRIMARY KEY (id),
-            FOREIGN KEY (category_id) REFERENCES $table_categories(id) ON DELETE SET NULL
-        ) $charset_collate;");
-    }
-
-    // Create carts table if not exists
-    if (!$carts_exists) {
-        dbDelta("CREATE TABLE $table_carts (
-            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            user_id BIGINT(20) UNSIGNED NOT NULL,
-            created_at DATETIME NOT NULL,
-            PRIMARY KEY (id)
-        ) $charset_collate;");
-    }
-
-    // Create cart items table if not exists
-    if (!$cart_items_exists) {
-        dbDelta("CREATE TABLE $table_cart_items (
-            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            cart_id BIGINT(20) UNSIGNED NOT NULL,
-            product_id BIGINT(20) UNSIGNED NOT NULL,
-            quantity INT(11) NOT NULL,
-            PRIMARY KEY (id),
-            FOREIGN KEY (cart_id) REFERENCES $table_carts(id) ON DELETE CASCADE,
-            FOREIGN KEY (product_id) REFERENCES $table_products(id) ON DELETE CASCADE
-        ) $charset_collate;");
-    }
-
-    // Create orders table if not exists
-    if (!$orders_exists) {
-        dbDelta("CREATE TABLE $table_orders (
-            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            user_id BIGINT(20) UNSIGNED NOT NULL,
-            total_amount DECIMAL(10,2) NOT NULL,
-            status VARCHAR(50) NOT NULL DEFAULT 'pending',
-            created_at DATETIME NOT NULL,
-            customer_name VARCHAR(100),
-            customer_email VARCHAR(100),
-            customer_phone VARCHAR(50),
-            customer_address TEXT,
-            PRIMARY KEY (id)
-        ) $charset_collate;");
-    }
-
-    // Create order items table if not exists
-    if (!$order_items_exists) {
-        dbDelta("CREATE TABLE $table_order_items (
-            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            order_id BIGINT(20) UNSIGNED NOT NULL,
-            product_id BIGINT(20) UNSIGNED NOT NULL,
-            quantity INT(11) NOT NULL,
-            price DECIMAL(10,2) NOT NULL,
-            PRIMARY KEY (id),
-            FOREIGN KEY (order_id) REFERENCES $table_orders(id) ON DELETE CASCADE,
-            FOREIGN KEY (product_id) REFERENCES $table_products(id) ON DELETE CASCADE
-        ) $charset_collate;");
+        $result = $wpdb->insert($wpdb->prefix . 'petshop_orders', $order);
+        if ($result === false) {
+            error_log('Failed to insert order: ' . $wpdb->last_error);
+            continue;
+        }
+        
+        $order_id = $wpdb->insert_id;
+        
+        // Add order items
+        for ($j = 0; $j < rand(1, 4); $j++) {
+            $order_item = [
+                'order_id' => $order_id,
+                'product_id' => rand(1, 4),
+                'quantity' => rand(1, 5),
+                'price' => rand(100000, 500000)
+            ];
+            $result = $wpdb->insert($wpdb->prefix . 'petshop_order_items', $order_item);
+            if ($result === false) {
+                error_log('Failed to insert order item: ' . $wpdb->last_error);
+            }
+        }
     }
 }
 

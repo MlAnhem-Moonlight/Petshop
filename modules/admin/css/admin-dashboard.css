@@ -27,7 +27,8 @@
 /* User Info Bar */
 .ps-user-info-bar {
     display: flex;
-    justify-content: space-between;
+    margin: 2px 0 2px 0;
+    justify-content: right;
     align-items: center;
     margin-bottom: 25px;
 }
