@@ -115,6 +115,8 @@ function petshop_create_tables() {
         phone VARCHAR(20),
         role VARCHAR(50) NOT NULL DEFAULT 'user',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status ENUM('active', 'banned') DEFAULT 'active',
         PRIMARY KEY (id)
     ) $charset_collate;";
     
@@ -833,3 +835,101 @@ function petshop_fetch_dashboard_data() {
     ]);
 }
 add_action('wp_ajax_petshop_fetch_dashboard_data', 'petshop_fetch_dashboard_data');
+
+function petshop_delete_product() {
+    check_ajax_referer('petshop_delete_product', 'security');
+    
+    if (!petshop_is_logged_in() || $_SESSION['ps_user_role'] !== 'admin') {
+        wp_send_json_error('Permission denied');
+        return;
+    }
+    
+    $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
+    
+    if (!$product_id) {
+        wp_send_json_error('Invalid product ID');
+        return;
+    }
+    
+    global $wpdb;
+    $result = $wpdb->delete(
+        $wpdb->prefix . 'petshop_products',
+        ['id' => $product_id]
+    );
+    
+    if ($result !== false) {
+        wp_send_json_success();
+    } else {
+        wp_send_json_error('Database delete failed');
+    }
+}
+add_action('wp_ajax_petshop_delete_product', 'petshop_delete_product');
+
+// Get product details
+function petshop_get_product() {
+    check_ajax_referer('petshop_edit_product', 'security');
+    
+    if (!petshop_is_logged_in() || $_SESSION['ps_user_role'] !== 'admin') {
+        wp_send_json_error('Permission denied');
+        return;
+    }
+    
+    $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
+    
+    if (!$product_id) {
+        wp_send_json_error('Invalid product ID');
+        return;
+    }
+    
+    global $wpdb;
+    $product = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}petshop_products WHERE id = %d",
+        $product_id
+    ));
+    
+    if ($product) {
+        wp_send_json_success($product);
+    } else {
+        wp_send_json_error('Product not found');
+    }
+}
+add_action('wp_ajax_petshop_get_product', 'petshop_get_product');
+
+// Update product
+function petshop_update_product() {
+    check_ajax_referer('petshop_edit_product', 'security');
+    
+    if (!petshop_is_logged_in() || $_SESSION['ps_user_role'] !== 'admin') {
+        wp_send_json_error('Permission denied');
+        return;
+    }
+    
+    $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
+    
+    if (!$product_id) {
+        wp_send_json_error('Invalid product ID');
+        return;
+    }
+    
+    $data = array(
+        'name' => sanitize_text_field($_POST['name']),
+        'price' => floatval($_POST['price']),
+        'stock_quantity' => intval($_POST['stock_quantity']),
+        'category_id' => intval($_POST['category_id']),
+        'description' => sanitize_textarea_field($_POST['description'])
+    );
+    
+    global $wpdb;
+    $result = $wpdb->update(
+        $wpdb->prefix . 'petshop_products',
+        $data,
+        ['id' => $product_id]
+    );
+    
+    if ($result !== false) {
+        wp_send_json_success();
+    } else {
+        wp_send_json_error('Update failed');
+    }
+}
+add_action('wp_ajax_petshop_update_product', 'petshop_update_product');
