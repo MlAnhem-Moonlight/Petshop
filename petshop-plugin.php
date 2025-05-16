@@ -933,3 +933,63 @@ function petshop_update_product() {
     }
 }
 add_action('wp_ajax_petshop_update_product', 'petshop_update_product');
+
+// Add this with your other AJAX handlers
+
+function petshop_add_product() {
+    check_ajax_referer('petshop_add_product', 'security');
+    
+    if (!petshop_is_logged_in() || $_SESSION['ps_user_role'] !== 'admin') {
+        wp_send_json_error('Không có quyền truy cập');
+        return;
+    }
+    
+    $name = isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '';
+    $price = isset($_POST['price']) ? floatval($_POST['price']) : 0;
+    $stock = isset($_POST['stock_quantity']) ? intval($_POST['stock_quantity']) : 0;
+    $category = isset($_POST['category_id']) ? intval($_POST['category_id']) : 0;
+    $description = isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '';
+    
+    // Validation
+    if (empty($name)) {
+        wp_send_json_error('Tên sản phẩm không được để trống');
+        return;
+    }
+    
+    if ($price <= 0) {
+        wp_send_json_error('Giá sản phẩm phải lớn hơn 0');
+        return;
+    }
+    
+    if ($stock < 0) {
+        wp_send_json_error('Số lượng không được âm');
+        return;
+    }
+    
+    if (empty($category)) {
+        wp_send_json_error('Vui lòng chọn danh mục');
+        return;
+    }
+    
+    global $wpdb;
+    $result = $wpdb->insert(
+        $wpdb->prefix . 'petshop_products',
+        array(
+            'name' => $name,
+            'price' => $price,
+            'stock_quantity' => $stock,
+            'category_id' => $category,
+            'description' => $description,
+            'created_at' => current_time('mysql')
+        ),
+        array('%s', '%f', '%d', '%d', '%s', '%s')
+    );
+    
+    if ($result === false) {
+        wp_send_json_error('Lỗi khi thêm sản phẩm: ' . $wpdb->last_error);
+        return;
+    }
+    
+    wp_send_json_success();
+}
+add_action('wp_ajax_petshop_add_product', 'petshop_add_product');

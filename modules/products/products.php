@@ -6,7 +6,7 @@
         <button type="button" id="search-button" class="button">Tìm kiếm</button>
     </div>
 
-    <a href="<?php echo admin_url('admin.php?page=ps-add-product'); ?>" class="page-title-action">Thêm sản phẩm mới</a>
+    <button id="addProductBtn" class="page-title-action">Thêm sản phẩm mới</button>
 
     <table class="wp-list-table widefat fixed striped petshop-products-table">
         <thead>
@@ -82,6 +82,44 @@
                     <textarea id="edit_description"></textarea>
                 </div>
                 <button type="submit" class="button button-primary">Lưu thay đổi</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="ps-modal">
+        <div class="ps-modal-content">
+            <span class="ps-modal-close">&times;</span>
+            <h2>Thêm sản phẩm mới</h2>
+            <form id="addProductForm">
+                <div class="ps-form-group">
+                    <label>Tên sản phẩm</label>
+                    <input type="text" id="add_name" name="name" required>
+                </div>
+                <div class="ps-form-group">
+                    <label>Giá</label>
+                    <input type="number" id="add_price" name="price" required min="0">
+                </div>
+                <div class="ps-form-group">
+                    <label>Số lượng</label>
+                    <input type="number" id="add_stock" name="stock_quantity" required min="0">
+                </div>
+                <div class="ps-form-group">
+                    <label>Danh mục</label>
+                    <select id="add_category" name="category_id" required>
+                        <option value="">Chọn danh mục</option>
+                        <?php
+                        foreach ($categories as $category) {
+                            echo '<option value="' . $category->id . '">' . esc_html($category->name) . '</option>';
+                        }
+                        ?>
+                    </select>
+                </div>
+                <div class="ps-form-group">
+                    <label>Mô tả</label>
+                    <textarea id="add_description" name="description"></textarea>
+                </div>
+                <button type="submit" class="button button-primary">Thêm sản phẩm</button>
             </form>
         </div>
     </div>
@@ -352,9 +390,40 @@ jQuery(document).ready(function($) {
         });
     });
 
-    // Close modal
+    // Show add product modal
+    $('#addProductBtn').on('click', function() {
+        $('#addProductForm')[0].reset();
+        $('#addProductModal').show();
+    });
+
+    // Update the add product form submission handler in your existing script
+    $('#addProductForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        var formData = $(this).serialize(); // This will now work with the added name attributes
+        formData += '&action=petshop_add_product&security=<?php echo wp_create_nonce("petshop_add_product"); ?>';
+        
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Không thể thêm sản phẩm: ' + (response.data || 'Lỗi không xác định'));
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Ajax error:', error);
+                alert('Đã xảy ra lỗi khi thêm sản phẩm');
+            }
+        });
+    });
+
+    // Update modal close handlers to handle both modals
     $('.ps-modal-close').on('click', function() {
-        $('#editProductModal').hide();
+        $('.ps-modal').hide();
     });
 
     $(window).on('click', function(e) {
