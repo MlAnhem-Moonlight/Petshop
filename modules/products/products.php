@@ -49,26 +49,26 @@
 
     <!-- Edit Product Modal -->
     <div id="editProductModal" class="ps-modal">
-        <div class="ps-modal-content">
+        <div class="ps-modal-content" style="max-height:80vh; overflow-y:auto; width:320px; max-width:95vw; padding:16px; margin-top:40px; margin-bottom:40px;">
             <span class="ps-modal-close">&times;</span>
-            <h2>Sửa thông tin sản phẩm</h2>
-            <form id="editProductForm">
-                <input type="hidden" id="edit_product_id">
-                <div class="ps-form-group">
-                    <label>Tên sản phẩm</label>
-                    <input type="text" id="edit_name" required>
+            <h2 style="font-size:1.15em;margin-bottom:12px;">Sửa thông tin sản phẩm</h2>
+            <form id="editProductForm" enctype="multipart/form-data">
+                <input type="hidden" id="edit_product_id" name="product_id">
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Tên sản phẩm</label>
+                    <input type="text" id="edit_name" name="name" required>
                 </div>
-                <div class="ps-form-group">
-                    <label>Giá</label>
-                    <input type="number" id="edit_price" required>
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Giá</label>
+                    <input type="number" id="edit_price" name="price" required>
                 </div>
-                <div class="ps-form-group">
-                    <label>Số lượng</label>
-                    <input type="number" id="edit_stock" required>
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Số lượng</label>
+                    <input type="number" id="edit_stock" name="stock_quantity" required>
                 </div>
-                <div class="ps-form-group">
-                    <label>Danh mục</label>
-                    <select id="edit_category">
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Danh mục</label>
+                    <select id="edit_category" name="category_id" required>
                         <?php
                         $categories = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}petshop_categories");
                         foreach ($categories as $category) {
@@ -77,35 +77,42 @@
                         ?>
                     </select>
                 </div>
-                <div class="ps-form-group">
-                    <label>Mô tả</label>
-                    <textarea id="edit_description"></textarea>
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Ảnh sản phẩm</label>
+                    <input type="file" id="edit_image_file" name="image_file" accept="image/*">
+                    <div id="edit_image_preview" style="margin-top:8px;">
+                        <img src="" alt="Ảnh sản phẩm" style="max-width:100%;max-height:90px;display:none;border-radius:4px;" />
+                    </div>
                 </div>
-                <button type="submit" class="button button-primary">Lưu thay đổi</button>
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Mô tả</label>
+                    <textarea id="edit_description" name="description" style="height:60px;"></textarea>
+                </div>
+                <button type="submit" class="button button-primary" style="width:100%;margin-top:8px;">Lưu thay đổi</button>
             </form>
         </div>
     </div>
 
     <!-- Add Product Modal -->
     <div id="addProductModal" class="ps-modal">
-        <div class="ps-modal-content">
+        <div class="ps-modal-content" style="max-height:80vh; overflow-y:auto; width:320px; max-width:95vw; padding:16px; margin-top:40px; margin-bottom:40px;">
             <span class="ps-modal-close">&times;</span>
-            <h2>Thêm sản phẩm mới</h2>
-            <form id="addProductForm">
-                <div class="ps-form-group">
-                    <label>Tên sản phẩm</label>
+            <h2 style="font-size:1.15em;margin-bottom:12px;">Thêm sản phẩm mới</h2>
+            <form id="addProductForm" enctype="multipart/form-data">
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Tên sản phẩm</label>
                     <input type="text" id="add_name" name="name" required>
                 </div>
-                <div class="ps-form-group">
-                    <label>Giá</label>
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Giá</label>
                     <input type="number" id="add_price" name="price" required min="0">
                 </div>
-                <div class="ps-form-group">
-                    <label>Số lượng</label>
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Số lượng</label>
                     <input type="number" id="add_stock" name="stock_quantity" required min="0">
                 </div>
-                <div class="ps-form-group">
-                    <label>Danh mục</label>
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Danh mục</label>
                     <select id="add_category" name="category_id" required>
                         <option value="">Chọn danh mục</option>
                         <?php
@@ -115,11 +122,15 @@
                         ?>
                     </select>
                 </div>
-                <div class="ps-form-group">
-                    <label>Mô tả</label>
-                    <textarea id="add_description" name="description"></textarea>
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Ảnh sản phẩm</label>
+                    <input type="file" id="add_image_file" name="image_file" accept="image/*">
                 </div>
-                <button type="submit" class="button button-primary">Thêm sản phẩm</button>
+                <div class="ps-form-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.98em;">Mô tả</label>
+                    <textarea id="add_description" name="description" style="height:60px;"></textarea>
+                </div>
+                <button type="submit" class="button button-primary" style="width:100%;margin-top:8px;">Thêm sản phẩm</button>
             </form>
         </div>
     </div>
@@ -357,29 +368,44 @@ jQuery(document).ready(function($) {
                     $('#edit_stock').val(product.stock_quantity);
                     $('#edit_category').val(product.category_id);
                     $('#edit_description').val(product.description);
+                    // Show image preview if exists
+                    if (product.image_url) {
+                        $('#edit_image_preview img').attr('src', product.image_url).show();
+                    } else {
+                        $('#edit_image_preview img').hide();
+                    }
+                    // Reset file input
+                    $('#edit_image_file').val('');
                     $('#editProductModal').show();
                 }
             }
         });
     });
 
-    // Handle form submission
+    // Preview new image before upload
+    $('#edit_image_file').on('change', function() {
+        var input = this;
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                $('#edit_image_preview img').attr('src', e.target.result).show();
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    });
+
+    // Handle edit form submit with file upload
     $('#editProductForm').on('submit', function(e) {
         e.preventDefault();
-        
+        var formData = new FormData(this);
+        formData.append('action', 'petshop_update_product');
+        formData.append('security', '<?php echo wp_create_nonce("petshop_edit_product"); ?>');
         $.ajax({
             url: ajaxurl,
             type: 'POST',
-            data: {
-                action: 'petshop_update_product',
-                security: '<?php echo wp_create_nonce("petshop_edit_product"); ?>',
-                product_id: $('#edit_product_id').val(),
-                name: $('#edit_name').val(),
-                price: $('#edit_price').val(),
-                stock_quantity: $('#edit_stock').val(),
-                category_id: $('#edit_category').val(),
-                description: $('#edit_description').val()
-            },
+            data: formData,
+            processData: false,
+            contentType: false,
             success: function(response) {
                 if (response.success) {
                     location.reload();
@@ -396,17 +422,20 @@ jQuery(document).ready(function($) {
         $('#addProductModal').show();
     });
 
-    // Update the add product form submission handler in your existing script
+    // Add Product Form with file upload
     $('#addProductForm').on('submit', function(e) {
         e.preventDefault();
-        
-        var formData = $(this).serialize(); // This will now work with the added name attributes
-        formData += '&action=petshop_add_product&security=<?php echo wp_create_nonce("petshop_add_product"); ?>';
-        
+
+        var formData = new FormData(this);
+        formData.append('action', 'petshop_add_product');
+        formData.append('security', '<?php echo wp_create_nonce("petshop_add_product"); ?>');
+
         $.ajax({
             url: ajaxurl,
             type: 'POST',
             data: formData,
+            processData: false,
+            contentType: false,
             success: function(response) {
                 if (response.success) {
                     location.reload();
