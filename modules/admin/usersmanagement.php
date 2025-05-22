@@ -84,8 +84,8 @@ function petshop_users_page() {
             <tbody>
                 <?php foreach ($users as $user): 
                     // Format timestamps
-                    $created_date = date('Y-m-d H:i:s', strtotime($user->created_at));
-                    $updated_date = !empty($user->updated_at) ? date('Y-m-d H:i:s', strtotime($user->updated_at)) : '-';
+                    $created_date = date('Y-m-d\nH:i:s', strtotime($user->created_at));
+                    $updated_date = !empty($user->updated_at) ? date('Y-m-d\nH:i:s', strtotime($user->updated_at)) : '-';
                 ?>
                     <tr data-status="<?php echo esc_attr($user->status ?? 'active'); ?>">
                         <td class="check-column">
