@@ -114,7 +114,6 @@ function petshop_create_tables() {
         email VARCHAR(100) NOT NULL,
         phone VARCHAR(20),
         role VARCHAR(50) NOT NULL DEFAULT 'user',
-        image_url TEXT, -- User image column added
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         status ENUM('active', 'banned') DEFAULT 'active',
@@ -571,169 +570,105 @@ function petshop_get_best_selling_products($limit = 8) {
 
 // Register admin menu
 function petshop_register_menu() {
-    // Always use 'read' so all logged-in users can see the menu
+    // Main menu page - always accessible for login
     add_menu_page(
         'Pet Shop Management',
         'Pet Shop',
-        'read',
+        'manage_options',
         'petshop-management',
         'petshop_login_page',
         'dashicons-pets',
         6
     );
 
-    // Only add other menu items if logged in
-    if (petshop_is_logged_in() && isset($_SESSION['ps_user_role'])) {
-        if ($_SESSION['ps_user_role'] === 'admin') {
-            // Admin-specific menu items (keep 'manage_options' for these)
-            $submenus = array(
-                array(
-                    'title' => 'Dashboard',
-                    'menu' => 'Dashboard',
-                    'slug' => 'ps-dashboard',
-                    'callback' => function(): void {
-                        petshop_check_auth();
-                        require_once PETSHOP_PLUGIN_DIR . 'modules/admin/dashboard.php';
-                        petshop_admin_dashboard();
-                    }
-                ),
-                array(
-                    'title' => 'User Management',
-                    'menu' => 'Users',
-                    'slug' => 'ps-users',
-                    'callback' => function() {
-                        petshop_check_auth();
-                        require_once PETSHOP_PLUGIN_DIR . 'modules/admin/usersmanagement.php';
-                        petshop_users_page();
-                    }
-                ),
-                array(
-                    'title' => 'Reports & Analytics',
-                    'menu' => 'Reports',
-                    'slug' => 'ps-reports',
-                    'callback' => function() {
-                        petshop_check_auth();
-                        require_once PETSHOP_PLUGIN_DIR . 'modules/admin/reports.php';
-                        petshop_reports_page();
-                    }
-                ),
-                array(
-                    'title' => 'User Info',
-                    'menu' => 'User Info',
-                    'slug' => 'ps-user-info',
-                    'callback' => function() {
-                        petshop_check_auth();
-                        require_once PETSHOP_PLUGIN_DIR . 'modules/admin/user-info.php';
-                        petshop_user_info_page();
-                    }
-                ),
-            );
+    // Only add other menu items if logged in as admin
+    if (petshop_is_logged_in() && isset($_SESSION['ps_user_role']) && $_SESSION['ps_user_role'] === 'admin') {
+        $submenus = array(
+            array(
+                'title' => 'Dashboard',
+                'menu' => 'Dashboard',
+                'slug' => 'ps-dashboard',
+                'callback' => function(): void {
+                    petshop_check_auth();
+                    require_once PETSHOP_PLUGIN_DIR . 'modules/admin/dashboard.php';
+                    petshop_admin_dashboard();
+                }
+            ),
+            array(
+                'title' => 'User Management',
+                'menu' => 'Users',
+                'slug' => 'ps-users',
+                'callback' => function() {
+                    petshop_check_auth();
+                    require_once PETSHOP_PLUGIN_DIR . 'modules/admin/usersmanagement.php';
+                    petshop_users_page();
+                }
+            ),
+            array(
+                'title' => 'Reports & Analytics',
+                'menu' => 'Reports',
+                'slug' => 'ps-reports',
+                'callback' => function() {
+                    petshop_check_auth();
+                    require_once PETSHOP_PLUGIN_DIR . 'modules/admin/reports.php';
+                    petshop_reports_page();
+                }
+            ),
+            array(
+                'title' => 'User Info',
+                'menu' => 'User Info',
+                'slug' => 'ps-user-info',
+                'callback' => function() {
+                    petshop_check_auth();
+                    require_once PETSHOP_PLUGIN_DIR . 'modules/admin/user-info.php';
+                    petshop_user_info_page();
+                }
+            ),
+        );
 
-            foreach ($submenus as $submenu) {
-                add_submenu_page(
-                    'petshop-management',
-                    $submenu['title'],
-                    $submenu['menu'],
-                    'manage_options',
-                    $submenu['slug'],
-                    $submenu['callback']
-                );
-            }
-
+        foreach ($submenus as $submenu) {
             add_submenu_page(
                 'petshop-management',
-                'Products',
-                'Products',
+                $submenu['title'],
+                $submenu['menu'],
                 'manage_options',
-                'ps-products',
-                'petshop_products_page'
-            );
-            
-            add_submenu_page(
-                'petshop-management',
-                'Categories',
-                'Categories',
-                'manage_options',
-                'ps-categories',
-                'petshop_categories_page'
-            );
-            
-            add_submenu_page(
-                'petshop-management',
-                'Customer Pets',
-                'Pets Information',
-                'manage_options',
-                'ps-pets',
-                'petshop_pets_page'
-            );
-        } elseif ($_SESSION['ps_user_role'] === 'user') {
-            // User-specific menu items (use 'read')
-            add_submenu_page(
-                'petshop-management',
-                'Shop',
-                'Shop',
-                'read',
-                'ps-shop',
-                function() {
-                    petshop_check_auth();
-                    require_once PETSHOP_PLUGIN_DIR . 'modules/user/shop.php';
-                }
-            );
-            add_submenu_page(
-                'petshop-management',
-                'My Cart',
-                'Cart',
-                'read',
-                'ps-cart',
-                function() {
-                    petshop_check_auth();
-                    require_once PETSHOP_PLUGIN_DIR . 'modules/user/cart.php';
-                }
-            );
-            add_submenu_page(
-                'petshop-management',
-                'My Orders',
-                'My Orders',
-                'read',
-                'ps-my-orders',
-                function() {
-                    petshop_check_auth();
-                    require_once PETSHOP_PLUGIN_DIR . 'modules/user/my_orders.php';
-                }
-            );
-            add_submenu_page(
-                'petshop-management',
-                'Account Info',
-                'Account',
-                'read',
-                'ps-account',
-                function() {
-                    petshop_check_auth();
-                    require_once PETSHOP_PLUGIN_DIR . 'modules/user/account.php';
-                }
+                $submenu['slug'],
+                $submenu['callback']
             );
         }
+
+        add_submenu_page(
+            'petshop-management',
+            'Products',
+            'Products',
+            'manage_options',
+            'ps-products',
+            'petshop_products_page'
+        );
+        
+        add_submenu_page(
+            'petshop-management',
+            'Categories',
+            'Categories',
+            'manage_options',
+            'ps-categories',
+            'petshop_categories_page'
+        );
+        
+        add_submenu_page(
+            'petshop-management',
+            'Customer Pets',
+            'Pets Information',
+            'manage_options',
+            'ps-pets',
+            'petshop_pets_page'
+        );
     }
 }
 add_action('admin_menu', 'petshop_register_menu');
 
 // Login page
 function petshop_login_page() {
-    // If already logged in as user, show Shop page instead of login
-    if (petshop_is_logged_in() && isset($_SESSION['ps_user_role'])) {
-        if ($_SESSION['ps_user_role'] === 'user') {
-            petshop_check_auth();
-            require_once PETSHOP_PLUGIN_DIR . 'modules/user/shop.php'; // or your custom user dashboard
-            return;
-        }
-        if ($_SESSION['ps_user_role'] === 'admin') {
-            petshop_check_auth();
-            require_once PETSHOP_PLUGIN_DIR . 'modules/admin/dashboard.php';
-            petshop_admin_dashboard();
-            return;
-        }
-    }
-
     if (isset($_GET['action'])) {
         switch ($_GET['action']) {
             case 'register':
@@ -963,50 +898,39 @@ add_action('wp_ajax_petshop_get_product', 'petshop_get_product');
 // Update product
 function petshop_update_product() {
     check_ajax_referer('petshop_edit_product', 'security');
+    
     if (!petshop_is_logged_in() || $_SESSION['ps_user_role'] !== 'admin') {
-        wp_send_json_error('Không có quyền truy cập');
+        wp_send_json_error('Permission denied');
         return;
     }
-
-    $product_id = intval($_POST['product_id']);
-    $name = sanitize_text_field($_POST['name']);
-    $price = floatval($_POST['price']);
-    $stock = intval($_POST['stock_quantity']);
-    $category = intval($_POST['category_id']);
-    $description = sanitize_textarea_field($_POST['description']);
-
-    $update_data = array(
-        'name' => $name,
-        'price' => $price,
-        'stock_quantity' => $stock,
-        'category_id' => $category,
-        'description' => $description
-    );
-
-    // --- ADD THIS BLOCK HERE ---
-    if (!empty($_FILES['image_file']['name'])) {
-        require_once(ABSPATH . 'wp-admin/includes/file.php');
-        $uploaded = wp_handle_upload($_FILES['image_file'], ['test_form' => false]);
-        if (!isset($uploaded['error'])) {
-            $image_url = $uploaded['url'];
-            $update_data['image_url'] = $image_url;
-        }
+    
+    $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
+    
+    if (!$product_id) {
+        wp_send_json_error('Invalid product ID');
+        return;
     }
-    // --- END BLOCK ---
-
+    
+    $data = array(
+        'name' => sanitize_text_field($_POST['name']),
+        'price' => floatval($_POST['price']),
+        'stock_quantity' => intval($_POST['stock_quantity']),
+        'category_id' => intval($_POST['category_id']),
+        'description' => sanitize_textarea_field($_POST['description'])
+    );
+    
     global $wpdb;
     $result = $wpdb->update(
         $wpdb->prefix . 'petshop_products',
-        $update_data,
-        array('id' => $product_id)
+        $data,
+        ['id' => $product_id]
     );
-
-    if ($result === false) {
-        wp_send_json_error('Lỗi khi cập nhật sản phẩm: ' . $wpdb->last_error);
-        return;
+    
+    if ($result !== false) {
+        wp_send_json_success();
+    } else {
+        wp_send_json_error('Update failed');
     }
-
-    wp_send_json_success();
 }
 add_action('wp_ajax_petshop_update_product', 'petshop_update_product');
 
@@ -1014,45 +938,39 @@ add_action('wp_ajax_petshop_update_product', 'petshop_update_product');
 
 function petshop_add_product() {
     check_ajax_referer('petshop_add_product', 'security');
+    
     if (!petshop_is_logged_in() || $_SESSION['ps_user_role'] !== 'admin') {
         wp_send_json_error('Không có quyền truy cập');
         return;
     }
-
+    
     $name = isset($_POST['name']) ? sanitize_text_field($_POST['name']) : '';
     $price = isset($_POST['price']) ? floatval($_POST['price']) : 0;
     $stock = isset($_POST['stock_quantity']) ? intval($_POST['stock_quantity']) : 0;
     $category = isset($_POST['category_id']) ? intval($_POST['category_id']) : 0;
     $description = isset($_POST['description']) ? sanitize_textarea_field($_POST['description']) : '';
-    $image_url = '';
-
-    // Handle file upload
-    if (!empty($_FILES['image_file']['name'])) {
-        require_once(ABSPATH . 'wp-admin/includes/file.php');
-        $uploaded = wp_handle_upload($_FILES['image_file'], ['test_form' => false]);
-        if (!isset($uploaded['error'])) {
-            $image_url = $uploaded['url'];
-        }
-    }
-
-    // Validation...
+    
+    // Validation
     if (empty($name)) {
         wp_send_json_error('Tên sản phẩm không được để trống');
         return;
     }
+    
     if ($price <= 0) {
         wp_send_json_error('Giá sản phẩm phải lớn hơn 0');
         return;
     }
+    
     if ($stock < 0) {
         wp_send_json_error('Số lượng không được âm');
         return;
     }
+    
     if (empty($category)) {
         wp_send_json_error('Vui lòng chọn danh mục');
         return;
     }
-
+    
     global $wpdb;
     $result = $wpdb->insert(
         $wpdb->prefix . 'petshop_products',
@@ -1062,78 +980,16 @@ function petshop_add_product() {
             'stock_quantity' => $stock,
             'category_id' => $category,
             'description' => $description,
-            'image_url' => $image_url
+            'created_at' => current_time('mysql')
         ),
         array('%s', '%f', '%d', '%d', '%s', '%s')
     );
-
+    
     if ($result === false) {
         wp_send_json_error('Lỗi khi thêm sản phẩm: ' . $wpdb->last_error);
         return;
     }
-
+    
     wp_send_json_success();
 }
 add_action('wp_ajax_petshop_add_product', 'petshop_add_product');
-
-add_action('wp_ajax_petshop_add_to_cart_db', function() {
-    global $wpdb;
-    // Get user id from session (custom login system)
-    $user_id = isset($_SESSION['ps_user_id']) ? intval($_SESSION['ps_user_id']) : 0;
-    if (!$user_id) {
-        wp_send_json_error('Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng.');
-    }
-    $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
-    $quantity = isset($_POST['quantity']) ? max(1, intval($_POST['quantity'])) : 1;
-
-    $table_carts = $wpdb->prefix . 'petshop_carts';
-    $table_cart_items = $wpdb->prefix . 'petshop_cart_items';
-    $table_products = $wpdb->prefix . 'petshop_products';
-
-    // Check product exists
-    $product = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_products WHERE id=%d", $product_id));
-    if (!$product) {
-        wp_send_json_error('Sản phẩm không tồn tại.');
-    }
-
-    // Get or create cart for this session user id
-    $cart = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_carts WHERE user_id=%d", $user_id));
-    if (!$cart) {
-        $wpdb->insert($table_carts, [
-            'user_id' => $user_id,
-            'created_at' => current_time('mysql')
-        ]);
-        if ($wpdb->last_error) {
-            wp_send_json_error('Lỗi khi tạo giỏ hàng: ' . $wpdb->last_error);
-        }
-        $cart_id = $wpdb->insert_id;
-    } else {
-        $cart_id = $cart->id;
-    }
-
-    // Check if item already in cart
-    $cart_item = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_cart_items WHERE cart_id=%d AND product_id=%d", $cart_id, $product_id));
-    if ($cart_item) {
-        $result = $wpdb->update(
-            $table_cart_items,
-            ['quantity' => $cart_item->quantity + $quantity],
-            ['id' => $cart_item->id]
-        );
-        if ($wpdb->last_error) {
-            wp_send_json_error('Lỗi khi cập nhật số lượng: ' . $wpdb->last_error);
-        }
-    } else {
-        $result = $wpdb->insert(
-            $table_cart_items,
-            [
-                'cart_id' => $cart_id,
-                'product_id' => $product_id,
-                'quantity' => $quantity,
-            ]
-        );
-        if ($wpdb->last_error) {
-            wp_send_json_error('Lỗi khi thêm sản phẩm vào giỏ: ' . $wpdb->last_error);
-        }
-    }
-    wp_send_json_success('Đã thêm vào giỏ hàng!');
-});
