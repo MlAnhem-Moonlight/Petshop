@@ -33,11 +33,25 @@ function petshop_user_shop_page() {
     if ($order === 'name_asc') $order_sql = "ORDER BY p.name ASC";
     if ($order === 'name_desc') $order_sql = "ORDER BY p.name DESC";
 
+    // Pagination
+    $items_per_page = 10;
+    $current_page = isset($_GET['ps_page']) ? max(1, intval($_GET['ps_page'])) : 1;
+    $offset = ($current_page - 1) * $items_per_page;
+
+    // Get total count for pagination
+    $count_sql = "SELECT COUNT(*) FROM $table_products p " . ($where ? $where_sql : '');
+    $total_items = $params ? $wpdb->get_var($wpdb->prepare($count_sql, ...$params)) : $wpdb->get_var($count_sql);
+    $total_pages = ceil($total_items / $items_per_page);
+
+    // Get products for current page
     $sql = "SELECT p.*, c.name as category_name FROM $table_products p
             LEFT JOIN $table_categories c ON p.category_id = c.id
             $where_sql
-            $order_sql";
-    $products = $params ? $wpdb->get_results($wpdb->prepare($sql, ...$params)) : $wpdb->get_results($sql);
+            $order_sql
+            LIMIT %d OFFSET %d";
+    $params[] = $items_per_page;
+    $params[] = $offset;
+    $products = $wpdb->get_results($wpdb->prepare($sql, ...$params));
     ?>
     <style>
         body, .wrap {
@@ -477,6 +491,23 @@ function petshop_user_shop_page() {
             <?php endif; ?>
         </div>
 
+        <!-- Pagination -->
+        <?php if ($total_pages > 1): ?>
+        <div style="text-align:center;margin:24px 0;">
+            <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                <?php
+                $query_args = $_GET;
+                $query_args['ps_page'] = $i;
+                $page_url = '?' . http_build_query($query_args);
+                ?>
+                <?php if ($i == $current_page): ?>
+                    <span style="display:inline-block;padding:6px 14px;margin:0 2px;background:#ff9800;color:#fff;border-radius:6px;font-weight:700;"><?php echo $i; ?></span>
+                <?php else: ?>
+                    <a href="<?php echo esc_url($page_url); ?>" style="display:inline-block;padding:6px 14px;margin:0 2px;background:#ffe066;color:#0d8abc;border-radius:6px;font-weight:700;text-decoration:none;"><?php echo $i; ?></a>
+                <?php endif; ?>
+            <?php endfor; ?>
+        </div>
+        <?php endif; ?>
         <!-- Modal HTML -->
         <div id="psProductModal" style="display:none;position:fixed;z-index:9999;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.35);align-items:center;justify-content:center;">
             <div id="psProductModalContent" style="background:#fffbe7;max-width:400px;width:90vw;border-radius:16px;box-shadow:0 8px 32px rgba(255,214,0,0.18);padding:28px 22px 18px 22px;position:relative;">
@@ -574,6 +605,14 @@ function petshop_user_shop_page() {
             if (qty < 1) qty = 1;
             if (qty > max) qty = max;
 
+            // Prevent adding more than stock
+            if (qty > max) {
+                qtyInput.value = max;
+                document.getElementById('psModalCartMsg').textContent = 'Không thể thêm quá số lượng trong kho!';
+                document.getElementById('psModalCartMsg').style.display = 'block';
+                return;
+            }
+
             btn.disabled = true;
             btn.textContent = 'Đang thêm...';
 
@@ -609,3 +648,6 @@ function petshop_user_shop_page() {
     <?php
 }
 petshop_user_shop_page();
+
+// Add this to your AJAX handler for adding to cart (in your plugin or functions.php):
+
