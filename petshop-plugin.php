@@ -698,22 +698,7 @@ function petshop_register_menu() {
                 'ps-my-orders',
                 function() {
                     petshop_check_auth();
-<<<<<<< Updated upstream
-                    require_once PETSHOP_PLUGIN_DIR . 'modules/user/my-orders.php';
-                }
-            );
-            add_submenu_page(
-                'petshop-management',
-                'My Pets',
-                'My Pets',
-                'read',
-                'ps-my-pets',
-                function() {
-                    petshop_check_auth();
-                    require_once PETSHOP_PLUGIN_DIR . 'modules/user/my-pets.php';
-=======
                     require_once PETSHOP_PLUGIN_DIR . 'modules/user/my_orders.php';
->>>>>>> Stashed changes
                 }
             );
             add_submenu_page(
@@ -1093,14 +1078,6 @@ add_action('wp_ajax_petshop_add_product', 'petshop_add_product');
 
 add_action('wp_ajax_petshop_add_to_cart_db', function() {
     global $wpdb;
-<<<<<<< Updated upstream
-    $user_id = get_current_user_id();
-    if (!$user_id) {
-        wp_send_json_error('Bạn cần đăng nhập!');
-    }
-    $product_id = intval($_POST['product_id']);
-    $quantity = max(1, intval($_POST['quantity']));
-=======
     // Get user id from session (custom login system)
     $user_id = isset($_SESSION['ps_user_id']) ? intval($_SESSION['ps_user_id']) : 0;
     if (!$user_id) {
@@ -1108,20 +1085,11 @@ add_action('wp_ajax_petshop_add_to_cart_db', function() {
     }
     $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
     $quantity = isset($_POST['quantity']) ? max(1, intval($_POST['quantity'])) : 1;
->>>>>>> Stashed changes
 
     $table_carts = $wpdb->prefix . 'petshop_carts';
     $table_cart_items = $wpdb->prefix . 'petshop_cart_items';
     $table_products = $wpdb->prefix . 'petshop_products';
 
-<<<<<<< Updated upstream
-    // Check product exists and stock
-    $product = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_products WHERE id=%d", $product_id));
-    if (!$product) wp_send_json_error('Sản phẩm không tồn tại!');
-    if ($quantity > $product->stock_quantity) wp_send_json_error('Vượt quá số lượng trong kho!');
-
-    // Get or create cart
-=======
     // Check product exists
     $product = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_products WHERE id=%d", $product_id));
     if (!$product) {
@@ -1129,40 +1097,20 @@ add_action('wp_ajax_petshop_add_to_cart_db', function() {
     }
 
     // Get or create cart for this session user id
->>>>>>> Stashed changes
     $cart = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_carts WHERE user_id=%d", $user_id));
     if (!$cart) {
         $wpdb->insert($table_carts, [
             'user_id' => $user_id,
             'created_at' => current_time('mysql')
         ]);
-<<<<<<< Updated upstream
-=======
         if ($wpdb->last_error) {
             wp_send_json_error('Lỗi khi tạo giỏ hàng: ' . $wpdb->last_error);
         }
->>>>>>> Stashed changes
         $cart_id = $wpdb->insert_id;
     } else {
         $cart_id = $cart->id;
     }
 
-<<<<<<< Updated upstream
-    // Check if item exists
-    $cart_item = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_cart_items WHERE cart_id=%d AND product_id=%d", $cart_id, $product_id));
-    if ($cart_item) {
-        $new_qty = $cart_item->quantity + $quantity;
-        if ($new_qty > $product->stock_quantity) $new_qty = $product->stock_quantity;
-        $wpdb->update($table_cart_items, ['quantity' => $new_qty], ['id' => $cart_item->id]);
-    } else {
-        $wpdb->insert($table_cart_items, [
-            'cart_id' => $cart_id,
-            'product_id' => $product_id,
-            'quantity' => $quantity
-        ]);
-    }
-    wp_send_json_success();
-=======
     // Check if item already in cart
     $cart_item = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_cart_items WHERE cart_id=%d AND product_id=%d", $cart_id, $product_id));
     if ($cart_item) {
@@ -1188,5 +1136,4 @@ add_action('wp_ajax_petshop_add_to_cart_db', function() {
         }
     }
     wp_send_json_success('Đã thêm vào giỏ hàng!');
->>>>>>> Stashed changes
 });

@@ -33,13 +33,6 @@ function petshop_user_shop_page() {
     if ($order === 'name_asc') $order_sql = "ORDER BY p.name ASC";
     if ($order === 'name_desc') $order_sql = "ORDER BY p.name DESC";
 
-<<<<<<< Updated upstream
-    $sql = "SELECT p.*, c.name as category_name FROM $table_products p
-            LEFT JOIN $table_categories c ON p.category_id = c.id
-            $where_sql
-            $order_sql";
-    $products = $params ? $wpdb->get_results($wpdb->prepare($sql, ...$params)) : $wpdb->get_results($sql);
-=======
     // Pagination
     $items_per_page = 10;
     $current_page = isset($_GET['ps_page']) ? max(1, intval($_GET['ps_page'])) : 1;
@@ -59,7 +52,6 @@ function petshop_user_shop_page() {
     $params[] = $items_per_page;
     $params[] = $offset;
     $products = $wpdb->get_results($wpdb->prepare($sql, ...$params));
->>>>>>> Stashed changes
     ?>
     <style>
         body, .wrap {
@@ -499,8 +491,6 @@ function petshop_user_shop_page() {
             <?php endif; ?>
         </div>
 
-<<<<<<< Updated upstream
-=======
         <!-- Pagination -->
         <?php if ($total_pages > 1): ?>
         <div style="text-align:center;margin:24px 0;">
@@ -518,7 +508,6 @@ function petshop_user_shop_page() {
             <?php endfor; ?>
         </div>
         <?php endif; ?>
->>>>>>> Stashed changes
         <!-- Modal HTML -->
         <div id="psProductModal" style="display:none;position:fixed;z-index:9999;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.35);align-items:center;justify-content:center;">
             <div id="psProductModalContent" style="background:#fffbe7;max-width:400px;width:90vw;border-radius:16px;box-shadow:0 8px 32px rgba(255,214,0,0.18);padding:28px 22px 18px 22px;position:relative;">
@@ -616,8 +605,6 @@ function petshop_user_shop_page() {
             if (qty < 1) qty = 1;
             if (qty > max) qty = max;
 
-<<<<<<< Updated upstream
-=======
             // Prevent adding more than stock
             if (qty > max) {
                 qtyInput.value = max;
@@ -626,7 +613,6 @@ function petshop_user_shop_page() {
                 return;
             }
 
->>>>>>> Stashed changes
             btn.disabled = true;
             btn.textContent = 'Đang thêm...';
 
@@ -661,11 +647,7 @@ function petshop_user_shop_page() {
     </script>
     <?php
 }
-<<<<<<< Updated upstream
-petshop_user_shop_page();
-=======
 petshop_user_shop_page();
 
 // Add this to your AJAX handler for adding to cart (in your plugin or functions.php):
 
->>>>>>> Stashed changes

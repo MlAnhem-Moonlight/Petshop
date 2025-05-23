@@ -1,20 +1,12 @@
 <?php
 function petshop_user_cart_page() {
     global $wpdb;
-<<<<<<< Updated upstream
-    if (!is_user_logged_in()) {
-        echo '<div style="padding:40px;text-align:center;font-size:1.2em;color:#0d8abc;">Bạn cần đăng nhập để xem giỏ hàng.</div>';
-        return;
-    }
-    $user_id = get_current_user_id();
-=======
     // Get user id from session if available, otherwise 0
     $user_id = isset($_SESSION['ps_user_id']) ? intval($_SESSION['ps_user_id']) : 0;
     if (!$user_id) {
         echo '<div style="padding:40px;text-align:center;font-size:1.2em;color:#0d8abc;">Bạn cần đăng nhập để xem giỏ hàng.</div>';
         return;
     }
->>>>>>> Stashed changes
     $table_carts = $wpdb->prefix . 'petshop_carts';
     $table_cart_items = $wpdb->prefix . 'petshop_cart_items';
     $table_products = $wpdb->prefix . 'petshop_products';
@@ -33,8 +25,6 @@ function petshop_user_cart_page() {
         );
     }
 
-<<<<<<< Updated upstream
-=======
     // Pagination
     $items_per_page = 5;
     $current_page = isset($_GET['cart_page']) ? max(1, intval($_GET['cart_page'])) : 1;
@@ -43,7 +33,6 @@ function petshop_user_cart_page() {
     $start = ($current_page - 1) * $items_per_page;
     $cart_items_page = array_slice($cart_items, $start, $items_per_page);
 
->>>>>>> Stashed changes
     // Handle cart actions (remove, update, checkout)
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && $cart) {
         // Remove item
@@ -60,13 +49,6 @@ function petshop_user_cart_page() {
             echo "<script>location.reload();</script>";
             exit;
         }
-<<<<<<< Updated upstream
-        // Checkout (clear cart)
-        if (isset($_POST['checkout'])) {
-            $wpdb->delete($table_cart_items, ['cart_id' => $cart->id]);
-            echo "<script>alert('Cảm ơn bạn đã đặt hàng!');location.reload();</script>";
-            exit;
-=======
         // Checkout only selected items
         if (isset($_POST['checkout_selected']) && isset($_POST['selected_items']) && isset($_POST['customer_name'])) {
             $selected_ids = array_map('intval', explode(',', $_POST['selected_items']));
@@ -114,7 +96,6 @@ function petshop_user_cart_page() {
                 echo "<script>alert('Cảm ơn bạn đã đặt hàng các sản phẩm đã chọn! Tổng tiền: " . number_format($total_amount, 0, ',', '.') . " đ');location.reload();</script>";
                 exit;
             }
->>>>>>> Stashed changes
         }
     }
 ?>
@@ -232,8 +213,6 @@ function petshop_user_cart_page() {
         .ps-cart-actions-bar .ps-cart-actions {
             margin: 0;
         }
-<<<<<<< Updated upstream
-=======
         .ps-cart-checkbox {
             width: 18px;
             height: 18px;
@@ -258,7 +237,6 @@ function petshop_user_cart_page() {
             background: #ffe066;
             color: #0d8abc;
         }
->>>>>>> Stashed changes
         @media (max-width: 700px) {
             .ps-cart-header-bar, .ps-cart-table-wrap {
                 max-width: 100vw;
@@ -275,8 +253,6 @@ function petshop_user_cart_page() {
                 max-width: 98vw;
             }
         }
-<<<<<<< Updated upstream
-=======
         .ps-modal-overlay {
             display: none;
             position: fixed;
@@ -346,27 +322,18 @@ function petshop_user_cart_page() {
             margin-bottom: 10px;
             text-align: right;
         }
->>>>>>> Stashed changes
     </style>
     <div class="wrap">
         <div class="ps-cart-header-bar">
             <div class="ps-cart-title">🛒 Giỏ hàng của bạn</div>
         </div>
         <div class="ps-cart-table-wrap">
-<<<<<<< Updated upstream
-            <?php if (!empty($cart_items)): ?>
-                <form method="post">
-                    <table class="ps-cart-table">
-                        <thead>
-                            <tr>
-=======
             <?php if (!empty($cart_items_page)): ?>
                 <form method="post" id="ps-cart-form">
                     <table class="ps-cart-table">
                         <thead>
                             <tr>
                                 <th></th>
->>>>>>> Stashed changes
                                 <th>Ảnh</th>
                                 <th>Tên sản phẩm</th>
                                 <th>Giá</th>
@@ -376,13 +343,6 @@ function petshop_user_cart_page() {
                             </tr>
                         </thead>
                         <tbody>
-<<<<<<< Updated upstream
-                        <?php $total = 0; foreach ($cart_items as $item): 
-                            $subtotal = $item->price * $item->quantity;
-                            $total += $subtotal;
-                        ?>
-                            <tr>
-=======
                         <?php $total = 0; foreach ($cart_items_page as $item): 
                             $subtotal = $item->price * $item->quantity;
                             $total += $subtotal;
@@ -391,7 +351,6 @@ function petshop_user_cart_page() {
                                 <td>
                                     <input type="checkbox" class="ps-cart-checkbox" name="selected_items[]" value="<?php echo $item->id; ?>">
                                 </td>
->>>>>>> Stashed changes
                                 <td>
                                     <?php if (!empty($item->image_url)): ?>
                                         <img src="<?php echo esc_url($item->image_url); ?>" alt="">
@@ -402,15 +361,9 @@ function petshop_user_cart_page() {
                                 <td><?php echo esc_html($item->name); ?></td>
                                 <td><?php echo number_format($item->price, 0, ',', '.'); ?> đ</td>
                                 <td>
-<<<<<<< Updated upstream
-                                    <input type="number" name="qty[<?php echo $item->id; ?>]" value="<?php echo intval($item->quantity); ?>" min="1" style="width:50px;padding:4px 8px;border-radius:6px;border:1.5px solid #ffe066;background:#fffbe7;">
-                                </td>
-                                <td><?php echo number_format($subtotal, 0, ',', '.'); ?> đ</td>
-=======
                                     <input type="number" name="qty[<?php echo $item->id; ?>]" value="<?php echo intval($item->quantity); ?>" min="1" style="width:50px;padding:4px 8px;border-radius:6px;border:1.5px solid #ffe066;background:#fffbe7;" class="ps-cart-qty-input">
                                 </td>
                                 <td class="ps-cart-subtotal"><?php echo number_format($subtotal, 0, ',', '.'); ?> đ</td>
->>>>>>> Stashed changes
                                 <td>
                                     <button type="submit" name="remove" value="<?php echo $item->id; ?>" style="background:#ff9800;">&times;</button>
                                 </td>
@@ -418,17 +371,6 @@ function petshop_user_cart_page() {
                         <?php endforeach; ?>
                         </tbody>
                     </table>
-<<<<<<< Updated upstream
-                    <!-- Actions moved outside the table -->
-                    <div class="ps-cart-actions-bar" style="justify-content: flex-end; margin-top: 18px;">
-                        <div class="ps-cart-total" style="margin-right: 18px;">Tổng cộng: <?php echo number_format($total, 0, ',', '.'); ?> đ</div>
-                        <div class="ps-cart-actions">
-                            <button type="submit" name="update_cart">Cập nhật</button>
-                            <button type="submit" name="checkout" style="background:#43c465;">Thanh toán</button>
-                        </div>
-                    </div>
-                </form>
-=======
                     <div class="ps-cart-actions-bar" style="justify-content: flex-end; margin-top: 18px;">
                         <div class="ps-cart-total" style="margin-right: 18px;">Tổng cộng: <span id="ps-cart-total"><?php echo number_format($total, 0, ',', '.'); ?></span> đ</div>
                         <div class="ps-cart-actions">
@@ -447,17 +389,11 @@ function petshop_user_cart_page() {
                     <?php endfor; ?>
                 </div>
                 <?php endif; ?>
->>>>>>> Stashed changes
             <?php else: ?>
                 <div class="ps-cart-empty">Giỏ hàng của bạn đang trống.</div>
             <?php endif; ?>
         </div>
     </div>
-<<<<<<< Updated upstream
-<?php
-}
-petshop_user_cart_page();
-=======
     <!-- Modal for payment info -->
     <div class="ps-modal-overlay" id="ps-modal-overlay">
         <div class="ps-modal">
@@ -576,4 +512,3 @@ petshop_user_cart_page();
 }
 petshop_user_cart_page();
 ?>
->>>>>>> Stashed changes
